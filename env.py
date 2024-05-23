@@ -1,23 +1,23 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 import  pandas as pd
 class DroidRLEnvironment:
     def __init__(self, dataset, valid_subset_length):
-        self.dataset = dataset
-        self.valid_subset_length = valid_subset_length # Độ dài của tập subset
-        self.features = dataset.columns[:-1] # Ta sẽ giả sử nhãn label nằm ở cuối
-        self.actionSpace = {index:column for index, column in enumerate(self.features)}  # Đánh số cho từng feature
+        self.dataset = dataset.replace('?', np.nan)  # Thay thế '?' bằng NaN
+        self.valid_subset_length = valid_subset_length  # Độ dài của tập con hợp lệ
+        self.features = dataset.columns[:-1]  # Giả sử nhãn nằm ở cột cuối cùng
+        self.actionSpace = {index: column for index, column in enumerate(self.features)}  # Đánh số cho từng tính năng
         self.state = []
         self.reward = 0
-        self.classifier = RandomForestClassifier(max_leaf_nodes=32, random_state=10)  # Sử dụng random forest để phân loại
+        self.classifier = RandomForestClassifier(max_leaf_nodes=32, random_state=10)  # Sử dụng Random Forest để phân loại
+        self.imputer = SimpleImputer(strategy='mean')  # Sử dụng SimpleImputer để điền giá trị thiếu
 
-    # Reset lại môi trường và trả lại state rỗng
     def reset(self):
         self.state = []
         self.reward = 0
         return self.state
 
-    # Thực hiện action được chọn
     def step(self, action):
         self.state.append(action)
         self.state.sort()
@@ -37,9 +37,13 @@ class DroidRLEnvironment:
         train_data, _ = self.split_dataset(0.8)
         X_train = train_data.loc[:, columns_selected]
         y_train = train_data.iloc[:, -1]
-        self.classifier.fit(X_train, y_train)  # Train the Random Forest classifier
-        accuracy = self.evaluate_accuracy()  # Evaluate the accuracy on the test set
-        if accuracy < 0.6 :
+
+        # Xử lý giá trị thiếu trong dữ liệu huấn luyện
+        X_train = self.imputer.fit_transform(X_train)
+        self.classifier.fit(X_train, y_train)  # Huấn luyện bộ phân loại Random Forest
+
+        accuracy = self.evaluate_accuracy()  # Đánh giá độ chính xác trên tập kiểm tra
+        if accuracy < 0.6:
             accuracy = -1.0
         return accuracy
 
@@ -48,20 +52,17 @@ class DroidRLEnvironment:
         _, test_data = self.split_dataset(0.8)
         X_test = test_data.loc[:, columns_selected]
         y_test = test_data.iloc[:, -1]
+
+        # Xử lý giá trị thiếu trong dữ liệu kiểm tra
+        X_test = self.imputer.transform(X_test)
         accuracy = self.classifier.score(X_test, y_test)
         return accuracy
 
     def is_done(self):
-        # Check if the agent has selected enough features according to the defined valid subset length
         return len(self.state) >= self.valid_subset_length
 
     def select_columns(self):
-        columns = []
-        for index in self.state:
-            column = self.actionSpace.get(index)
-            columns.append(column)
-        return columns
-
+        return [self.actionSpace[index] for index in self.state]
 
     def print(self):
         print(self.reward, self.state)
