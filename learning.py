@@ -5,11 +5,11 @@ from env import DroidRLEnvironment
 import pandas as pd
 
 # Tải mô hình đã lưu
-loaded_model = load_model("model.h5")
+loaded_model = load_model("SVM16.h5")
 
 # Sử dụng mô hình để dự đoán hoặc đánh giá
-dataset = pd.read_csv("drebin-215-dataset-5560malware-9476-benign.csv")
-env = DroidRLEnvironment(dataset, valid_subset_length=30)
+dataset = pd.read_csv("data1.csv", index_col=0)
+env = DroidRLEnvironment(dataset, valid_subset_length=16)
 
 
 def act(state, model, action_size, num_actions):

@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Embedding, LSTM, Dense, Input
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Input, Flatten
 from tensorflow.keras.models import Model
 
 class DecisionNetwork:

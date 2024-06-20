@@ -7,13 +7,13 @@ from decision_network import  DecisionNetwork
 import random
 if __name__ == "__main__":
     # Khởi tạo môi trường và các tham số
-    dataset = pd.read_csv("drebin-215-dataset-5560malware-9476-benign.csv")
-    env = DroidRLEnvironment(dataset, valid_subset_length=30)
+    dataset = pd.read_csv("data1.csv", index_col= 0)
+    env = DroidRLEnvironment(dataset, valid_subset_length=21)
     input_dim = len(env.features)
     embedding_dim = 128
     hidden_dim = 256
     action_size = len(env.features)
-    E = 1000  # Tổng số tập huấn luyện
+    E = 600  # Tổng số tập huấn luyện
     p = 0.99  # Hằng số cho việc cập nhật epsilon
     gamma = 0.99  # Tỷ lệ chiết khấu
     epsilon = 1.0  # Tỷ lệ khám phá
@@ -21,8 +21,8 @@ if __name__ == "__main__":
     learning_rate = 0.001
     batch_size = 16
     M = 100  # Số tập warm-up cho bộ nhớ replay
-    Network_Learn_Frequency = 10  # Tần suất cập nhật mạng chính
-    Sync_Frequency = 30  # Tần suất đồng bộ hóa mạng mục tiêu
+    Network_Learn_Frequency = 5  # Tần suất cập nhật mạng chính
+    Sync_Frequency = 25   # Tần suất đồng bộ hóa mạng mục tiêu
 
     # Khởi tạo mô hình
     decision_network = DecisionNetwork(input_dim, embedding_dim, hidden_dim, action_size)
@@ -38,18 +38,21 @@ if __name__ == "__main__":
 
     def act(state, model, epsilon, action_size):
         if np.random.rand() <= epsilon:
-            return random.randrange(action_size)
+            while True:
+                action = random.randrange(action_size)
+                if action not in state:
+                    return action
 
         # Xử lý trạng thái rỗng
         if len(state) == 0:
-            state = [0]
-        state = tf.constant([state], dtype=tf.int32)
-        act_values = model(state).numpy()[0]
+            state.append(random.randrange(action_size))
+        state_tensor = tf.constant([state], dtype=tf.int32)
+        act_values = model(state_tensor).numpy()[0]
 
         # Chọn hành động không trùng lặp
         sorted_actions = np.argsort(act_values)[::-1]  # Sắp xếp hành động theo giá trị giảm dần
         for action in sorted_actions:
-            if action not in state.numpy()[0]:
+            if action not in state:
                 return action
         return sorted_actions[0]  # Nếu không tìm thấy, trả về hành động giá trị cao nhất
 
@@ -104,6 +107,7 @@ if __name__ == "__main__":
             action = act(state, model, epsilon, action_size)
             next_state, reward, done = env.step(action)
             memory.add(previous_state, action, reward, next_state, done)
+            print(reward)
             state = next_state
             total_reward += reward
             all_states.append(state.copy())
@@ -147,5 +151,5 @@ if __name__ == "__main__":
     print(f"Optimal Feature Subset: {optimal_state}, Final Reward: {final_reward}")
     print(state)
     # Lưu mô hình sau khi huấn luyện xong
-    model.save("model.h5", save_format='tf')
+    model.save("SVM21.h5", save_format='tf')
     print(f"Model has been saved")
